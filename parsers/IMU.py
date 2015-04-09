@@ -2,7 +2,7 @@ import re, datetime, utils
 
 
 
-class IMU:
+class Parser:
 	regex = re.compile(r'#IMU:(\d+),([-+]?\d+\.\d+),([-+]?\d+),([-+]?\d+),([-+]?\d+),([-+]?\d+),([-+]?\d+),([-+]?\d+),([-+]?\d+),([-+]?\d+),([-+]?\d+)')
 	def parse(self, string):
 		m = self.regex.match(string)

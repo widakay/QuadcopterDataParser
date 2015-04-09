@@ -2,16 +2,18 @@ import re, datetime, utils.parser
 
 
 
-class PRS:
-	regex = re.compile(r'#PRS:(\d+),(\d+),(\d+)')
+class Parser:
+	regex = re.compile(r'#PRS:(\d+),([-+]?\d+\.\d+),([-+]?\d+\.\d+)')
 	def parse(self, string):
 		m = self.regex.match(string)
 		if not m:
 			return
 		
 		millis = int(m.group(1))
-		return (millis)
+		temperature = float(m.group(2))
+		pressure = float(m.group(3))
+		return (millis, pressure, temperature)
 if __name__ == "__main__":
-	parser = GPSC()
+	parser = Parser()
 	print parser.parse("hi")
-	print parser.parse("#GPS:1329604,80415,18163100,f:E8D91542,f:4B8CF4C2,f:9A196A43,6,132")
+	print parser.parse("#PRS:182794,23.10,992.5100")
