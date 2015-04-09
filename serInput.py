@@ -4,31 +4,33 @@ import time, serial, glob, sys, os
 
 
 def listSerialPorts():
-    if sys.platform.startswith('win'):
-        ports = ['COM' + str(i + 1) for i in range(256)]
+	
 
-    elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
-        # this is to exclude your current terminal "/dev/tty"
-        ports = glob.glob('/dev/tty[A-Za-z]*')
+	if sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
+		# this is to exclude your current terminal "/dev/tty"
+		ports = glob.glob('/dev/tty[A-Za-z]*')
 
-    elif sys.platform.startswith('darwin'):
-        ports = glob.glob('/dev/tty.*')
+	elif sys.platform.startswith('darwin'):
+		ports = glob.glob('/dev/tty.*')
 
-    else:
-        raise EnvironmentError('Unsupported platform')
+	elif sys.platform.startswith('win'):
+		ports = ['COM' + str(i + 1) for i in range(256)]
 
-    result = []
-    for port in ports:
-        try:
-            s = serial.Serial(port)
-            s.close()
-            result.append(port)
-        except (OSError, serial.SerialException):
-            pass
-    return result
+	else:
+		raise EnvironmentError('Unsupported platform')
+
+	result = []
+	for port in ports:
+		try:
+			s = serial.Serial(port)
+			s.close()
+			result.append(port)
+		except (OSError, serial.SerialException):
+			pass
+	return result
 
 class UnknownSerialPortException(Exception):
-    pass
+	pass
 
 def findPort():
 	serialPorts = listSerialPorts()
