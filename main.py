@@ -11,7 +11,8 @@ import inspect
 import simplekml
 import types
 
-directory = "data/" + "park-good1"#withwalk"# + str(int(time.time()))
+#directory = "data/trashy/" + "aroundhouse" #+ str(int(time.time()))
+directory = "data/" + "lowPressure" #+ str(int(time.time()))
 
 if len(sys.argv) > 1:
 	directory = sys.argv[1]
@@ -25,14 +26,13 @@ filename = directory + "/data.txt"
 print "openning", filename
 
 port = serInput.findPort()
+
+dataFile = open(filename, "a")
 if port:
-	dataFile = open(filename, "w")
-
 	dataFile.write(serInput.readInput(port))
-
-	dataFile.close()
 else:
 	print "using cached data"
+dataFile.close()
 
 parserList = {}
 for name, module in parsers.__dict__.iteritems():
@@ -58,21 +58,41 @@ fileshort = filename[:filename.find(".txt")]
 print fileshort
 
 
-pos = open(fileshort+"-GPS.csv", "w")
+sensorNames = {
+	0:"time",
+	1:"GPS",
+	2:"pressure",
+	3:"LP",
+	4:"PPM",
+	5:"temperature",
+	6:"imu",
+}
+kmldir = directory+"/kml/"
+csvdir = directory+"/csv/"
+
+if not os.path.exists(kmldir):
+	os.mkdir(kmldir)
+if not os.path.exists(csvdir):
+	os.mkdir(csvdir)
+
+
+pos = open(csvdir+sensorNames[1]+".csv", "w")
 pos.write("Time,Lat,Lon,Alt\n")
 
-lp = open(fileshort+"-LP.csv", "w")
+lp = open(csvdir+sensorNames[3]+".csv", "w")
 lp.write("Time,heater,voltage\n")
 
-ppm = open(fileshort+"-PPM.csv", "w")
+ppm = open(csvdir+sensorNames[4]+".csv", "w")
 ppm.write("Time,voltage,ppm\n")
 
-prs = open(fileshort+"-PRS.csv", "w")
+prs = open(csvdir+sensorNames[2]+".csv", "w")
 prs.write("Time,pressure,temperature\n")
 
-imu = open(fileshort+"-IMU.csv", "w")
+imu = open(csvdir+sensorNames[6]+".csv", "w")
 imu.write("Time,prs,ax,ay,az,gx,gy,gz,mx,my,mz\n")
 
+combined = open(csvdir+"combined.csv", "w")
+combined.write("Time(ms),temperature,pressure,LP,LPState,PPM\n")
 
 
 posVec = [0,0,0]
@@ -82,13 +102,19 @@ lastPressure = 0
 lastTemp = 0
 lastPPM = 0
 lastLP = 0
+lastLPState = 0
 
 
 startTime = datetime.datetime.now()
 lasttime = 0
 
+def logCombined():
+	combined.write(str(m[0]) + "," + str(lastTemp) + "," + str(lastPressure) + "," + str(lastLP) + "," + str(lastLPState) + "," + str(lastPPM) + '\n')
+
+i=0
 for line in log.readlines():
 	line = line.strip()
+	i += 1
 	for mType, parser in parserList.iteritems():
 		m = parser.parse(line)
 		if m:
@@ -102,37 +128,49 @@ for line in log.readlines():
 				ppm.write(str(m[0]) + "," + str(m[1]) + "," + str(m[2]) + '\n')
 			elif mType == "LP":
 				lastLP = m[2]
+				lastLPState = m[1]
 				lp.write(str(m[0]) + "," + str(m[1]) + "," + str(m[2]) + '\n')
 			elif mType == "GPSC":
-				if m[2][2] < 100000:
-					data.append((m[1], (m[2][1], m[2][0], m[2][2]), lastPressure, lastLP, lastPPM, lastTemp))
+				if m[2][2] < 300:
+					if lastPressure != 0 and lastLP != 0 and lastPPM != 0 and lastTemp != 0 and i>100:
+						data.append((m[1], (m[2][1], m[2][0], m[2][2]), lastPressure, lastLP, lastPPM, lastTemp))
 				pos.write(str(m[1]) + "," + str(m[2][0]) + "," + str(m[2][1]) + "," + str(m[2][2]) + '\n')
-
+			logCombined()
 
 from operator import itemgetter
 
-print data[0]
+if data:
+	print data[0]
+else:
+	sys.exit("no GPS points to attatch data to")
+
 
 def createKML(sensorID):
 	kml = simplekml.Kml()
 	chartval = sensorID
 	minimum = min(data,key=lambda item:item[chartval])[chartval]
 	maximum = max(data,key=lambda item:item[chartval])[chartval]
+	if sensorID == 2:
+		maximum = 0.15
 
 	print sensorID, maximum, minimum, (data[0][chartval]-minimum)*(255.0/(maximum-minimum))
 
 	for i in xrange(len(data)-2):
 		linestring = kml.newlinestring()
 		linestring.coords = [data[i][1],data[i+1][1]]
-		color = (data[i][chartval]-minimum)*(255.0/(maximum-minimum))
+		if maximum-minimum != 0:
+			color = (data[i][chartval]-minimum)*(255.0/(maximum-minimum))
+		else:
+			color = 0
 		r = color
 		g = 255-color
 		b = 255
 		linestring.style.linestyle.color = "aa%02x%02x%02x" % (b,g,r)
 		linestring.altitudemode = simplekml.AltitudeMode.absolute
+		#linestring.altitudemode = simplekml.AltitudeMode.clamptoground
 		linestring.style.linestyle.width = 10
 
-	kml.save(fileshort+"-"+str(sensorID)+".kml")
+	kml.save(kmldir+sensorNames[sensorID]+".kml")
 
 
 

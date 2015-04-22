@@ -21,12 +21,15 @@ def listSerialPorts():
 
 	result = []
 	for port in ports:
-		try:
-			s = serial.Serial(port)
-			s.close()
-			result.append(port)
-		except (OSError, serial.SerialException):
-			pass
+		if "usb" in port:
+			try:
+				s = serial.Serial(port)
+				s.close()
+				result.append(port)
+			except (OSError, serial.SerialException):
+				pass
+
+	print "found ports:", ports, "using port:", result
 	return result
 
 class UnknownSerialPortException(Exception):
@@ -39,7 +42,7 @@ def findPort():
 		return port
 	return
 
-def readInput(port):
+def readInput(port, deleteData=True):
 	if not os.path.exists(port):
 		raise UnknownSerialPortException("Port " + port + " does not exist")
 	else:
@@ -63,7 +66,7 @@ def readInput(port):
 		ser.flush()
 
 
-		ser.write("rd")
+		ser.write("r")
 
 		end = time.time() + 2
 		print "reading data...."
@@ -74,9 +77,13 @@ def readInput(port):
 				addition = ser.read(ser.inWaiting())
 				data += addition
 				print 'Receieved \t' + str(len(addition)) + " bytes"
-				end = time.time() + 0.75
+				end = time.time() + 2.0
 			time.sleep(0.5)
 		#print data
+		if deleteData:
+			print "Erasing data on device..."
+			ser.write("d")
+			print "Done."
 
 		ser.close()
 		return data
