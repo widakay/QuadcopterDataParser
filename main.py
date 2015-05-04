@@ -11,8 +11,8 @@ import inspect
 import simplekml
 import types
 
-#directory = "data/trashy/" + "aroundhouse" #+ str(int(time.time()))
-directory = "data/" + "lowPressure" #+ str(int(time.time()))
+directory = "data/edgewood3/" + "longzigzag" #+ str(int(time.time()))
+#directory = "data/" + "lowPressure" #+ str(int(time.time()))
 
 if len(sys.argv) > 1:
 	directory = sys.argv[1]
@@ -66,6 +66,7 @@ sensorNames = {
 	4:"PPM",
 	5:"temperature",
 	6:"imu",
+	7:"DHT"
 }
 kmldir = directory+"/kml/"
 csvdir = directory+"/csv/"
@@ -100,6 +101,7 @@ data = []
 
 lastPressure = 0
 lastTemp = 0
+lastHumidity = 0
 lastPPM = 0
 lastLP = 0
 lastLPState = 0
@@ -121,7 +123,7 @@ for line in log.readlines():
 			print mType.ljust(6) + ":", m
 			if mType == "PRS":
 				lastPressure = m[1]
-				lastTemp = m[2]
+				#lastTemp = m[2]
 				prs.write(str(m[0]) + "," + str(m[1]) + "," + str(m[2]) + '\n')
 			elif mType == "PPM":
 				lastPPM = m[2]
@@ -130,10 +132,13 @@ for line in log.readlines():
 				lastLP = m[2]
 				lastLPState = m[1]
 				lp.write(str(m[0]) + "," + str(m[1]) + "," + str(m[2]) + '\n')
+			elif mType == "DHT":
+				lastTemp = parser.temperature
+				lastHumidity = parser.humidity
 			elif mType == "GPSC":
 				if m[2][2] < 300:
 					if lastPressure != 0 and lastLP != 0 and lastPPM != 0 and lastTemp != 0 and i>100:
-						data.append((m[1], (m[2][1], m[2][0], m[2][2]), lastPressure, lastLP, lastPPM, lastTemp))
+						data.append((m[1], (m[2][1], m[2][0], m[2][2]), lastPressure, lastLP, lastPPM, lastTemp, lastHumidity))
 				pos.write(str(m[1]) + "," + str(m[2][0]) + "," + str(m[2][1]) + "," + str(m[2][2]) + '\n')
 			logCombined()
 
