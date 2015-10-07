@@ -11,8 +11,10 @@ import inspect
 import simplekml
 import types
 
-directory = "data/edgewood3/" + "longzigzag" #+ str(int(time.time()))
+directory = "data/websitetesting/" + "longzigzag" #+ str(int(time.time()))
 #directory = "data/" + "lowPressure" #+ str(int(time.time()))
+#directory = "data/oregon/" + "baseline"
+
 
 if len(sys.argv) > 1:
 	directory = sys.argv[1]
@@ -29,7 +31,7 @@ port = serInput.findPort()
 
 dataFile = open(filename, "a")
 if port:
-	dataFile.write(serInput.readInput(port))
+	dataFile.write(serInput.readInput(port, deleteData=True))
 else:
 	print "using cached data"
 dataFile.close()
@@ -92,6 +94,9 @@ prs.write("Time,pressure,temperature\n")
 imu = open(csvdir+sensorNames[6]+".csv", "w")
 imu.write("Time,prs,ax,ay,az,gx,gy,gz,mx,my,mz\n")
 
+dht = open(csvdir+sensorNames[7]+".csv", "w")
+dht.write("Time,temperature (C),humidity\n")
+
 combined = open(csvdir+"combined.csv", "w")
 combined.write("Time(ms),temperature,pressure,LP,LPState,PPM\n")
 
@@ -111,41 +116,43 @@ startTime = datetime.datetime.now()
 lasttime = 0
 
 def logCombined():
-	combined.write(str(m[0]) + "," + str(lastTemp) + "," + str(lastPressure) + "," + str(lastLP) + "," + str(lastLPState) + "," + str(lastPPM) + '\n')
+	combined.write(str(parser.millis) + "," + str(lastTemp) + "," + str(lastPressure) + "," + str(lastLP) + "," + str(lastLPState) + "," + str(lastPPM) + '\n')
 
 i=0
 for line in log.readlines():
 	line = line.strip()
 	i += 1
-	for mType, parser in parserList.iteritems():
-		m = parser.parse(line)
-		if m:
-			print mType.ljust(6) + ":", m
-			if mType == "PRS":
-				lastPressure = m[1]
+	for name, parser in parserList.iteritems():
+
+		if parser.parse(line):
+			#print parser.type.ljust(6) + ":"
+			if parser.type == "PRS":
+				lastPressure = parser.pressure
 				#lastTemp = m[2]
-				prs.write(str(m[0]) + "," + str(m[1]) + "," + str(m[2]) + '\n')
-			elif mType == "PPM":
-				lastPPM = m[2]
-				ppm.write(str(m[0]) + "," + str(m[1]) + "," + str(m[2]) + '\n')
-			elif mType == "LP":
-				lastLP = m[2]
-				lastLPState = m[1]
-				lp.write(str(m[0]) + "," + str(m[1]) + "," + str(m[2]) + '\n')
-			elif mType == "DHT":
+				prs.write(str(parser))
+			elif parser.type == "PPM":
+				lastPPM = parser.PPM
+				ppm.write(str(parser))
+			elif parser.type == "LP":
+				lastLP = parser.LP
+				lastLPState = parser.LPState
+				lp.write(str(parser))
+			elif parser.type == "DHT":
 				lastTemp = parser.temperature
 				lastHumidity = parser.humidity
-			elif mType == "GPSC":
-				if m[2][2] < 300:
+				dht.write(str(parser))
+			elif parser.type == "GPS":
+				if parser.alt < 300:
 					if lastPressure != 0 and lastLP != 0 and lastPPM != 0 and lastTemp != 0 and i>100:
-						data.append((m[1], (m[2][1], m[2][0], m[2][2]), lastPressure, lastLP, lastPPM, lastTemp, lastHumidity))
-				pos.write(str(m[1]) + "," + str(m[2][0]) + "," + str(m[2][1]) + "," + str(m[2][2]) + '\n')
-			logCombined()
+						data.append([parser.time, (parser.lat, parser.lon, parser.alt), lastPressure, lastLP, lastPPM, lastTemp, lastHumidity])
+				pos.write(str(parser))
+				logCombined()
 
 from operator import itemgetter
 
 if data:
 	print data[0]
+
 else:
 	sys.exit("no GPS points to attatch data to")
 
@@ -158,7 +165,8 @@ def createKML(sensorID):
 	if sensorID == 2:
 		maximum = 0.15
 
-	print sensorID, maximum, minimum, (data[0][chartval]-minimum)*(255.0/(maximum-minimum))
+	if maximum-minimum != 0:
+		print sensorID, maximum, minimum, (data[0][chartval]-minimum)*(255.0/(maximum-minimum))
 
 	for i in xrange(len(data)-2):
 		linestring = kml.newlinestring()
@@ -171,8 +179,8 @@ def createKML(sensorID):
 		g = 255-color
 		b = 255
 		linestring.style.linestyle.color = "aa%02x%02x%02x" % (b,g,r)
-		linestring.altitudemode = simplekml.AltitudeMode.absolute
-		#linestring.altitudemode = simplekml.AltitudeMode.clamptoground
+		#linestring.altitudemode = simplekml.AltitudeMode.absolute
+		linestring.altitudemode = simplekml.AltitudeMode.clamptoground
 		linestring.style.linestyle.width = 10
 
 	kml.save(kmldir+sensorNames[sensorID]+".kml")

@@ -3,6 +3,13 @@ import re, datetime, utils
 
 
 class BAT:
+	def __init__(self):
+		self.type = "BAT"
+		self.millis = 0
+
+	def __str__(self):
+		return str(self.millis) + "," + str(self.voltage) + '\n'
+
 	regex = re.compile(r'#BATT?:(\d+),([-+]?\d+\.\d+),([-+]?\d+\.\d+)')
 	def parse(self, string):
 		m = self.regex.match(string)

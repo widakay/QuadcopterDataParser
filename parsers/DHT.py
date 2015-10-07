@@ -10,6 +10,9 @@ class Parser:
 		self.temperature = -1
 		self.humidity = -1
 
+	def __str__(self):
+		return str(self.millis) + "," + str(self.temperature) + "," + str(self.humidity) + '\n'
+	
 	def parse(self, string):
 		m = self.regex.match(string)
 		if not m:
