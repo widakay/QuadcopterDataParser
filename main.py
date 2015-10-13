@@ -10,8 +10,12 @@ import serInput
 import inspect
 import simplekml
 import types
+import json
 
-directory = "data/websitetesting/" + "longzigzag" #+ str(int(time.time()))
+from operator import itemgetter
+
+
+directory = "data/websitetesting/" + "park-good1" #+ str(int(time.time()))
 #directory = "data/" + "lowPressure" #+ str(int(time.time()))
 #directory = "data/oregon/" + "baseline"
 
@@ -72,12 +76,14 @@ sensorNames = {
 }
 kmldir = directory+"/kml/"
 csvdir = directory+"/csv/"
+webdir = directory+"/web/"
 
 if not os.path.exists(kmldir):
 	os.mkdir(kmldir)
 if not os.path.exists(csvdir):
 	os.mkdir(csvdir)
-
+if not os.path.exists(webdir):
+	os.mkdir(webdir)
 
 pos = open(csvdir+sensorNames[1]+".csv", "w")
 pos.write("Time,Lat,Lon,Alt\n")
@@ -99,6 +105,8 @@ dht.write("Time,temperature (C),humidity\n")
 
 combined = open(csvdir+"combined.csv", "w")
 combined.write("Time(ms),temperature,pressure,LP,LPState,PPM\n")
+
+jsondata = {"data" : []}
 
 
 posVec = [0,0,0]
@@ -125,7 +133,7 @@ for line in log.readlines():
 	for name, parser in parserList.iteritems():
 
 		if parser.parse(line):
-			#print parser.type.ljust(6) + ":"
+			#print parser.type.ljust(6) + ": " + line
 			if parser.type == "PRS":
 				lastPressure = parser.pressure
 				#lastTemp = m[2]
@@ -143,12 +151,15 @@ for line in log.readlines():
 				dht.write(str(parser))
 			elif parser.type == "GPS":
 				if parser.alt < 300:
-					if lastPressure != 0 and lastLP != 0 and lastPPM != 0 and lastTemp != 0 and i>100:
+					if lastPressure != 0 and lastLP != 0 and lastPPM != 0 and i>100:
 						data.append([parser.time, (parser.lat, parser.lon, parser.alt), lastPressure, lastLP, lastPPM, lastTemp, lastHumidity])
+					else:
+						print "discarding data point"
+						print [parser.time, (parser.lat, parser.lon, parser.alt), lastPressure, lastLP, lastPPM, lastTemp, lastHumidity]
 				pos.write(str(parser))
 				logCombined()
-
-from operator import itemgetter
+			else:
+				print "error parsing: " + line
 
 if data:
 	print data[0]
@@ -187,5 +198,17 @@ def createKML(sensorID):
 
 
 
-for i in range(2,6):
-	createKML(i)
+#for i in range(2,6):
+#	createKML(i)
+
+if data:
+	for v in data:
+		jsondata["data"].append({
+			"pos":v[1],
+			"pressure":v[2]
+			})
+
+#print json.dumps(jsondata)
+
+with open(webdir+'data.json', 'w') as outfile:
+    json.dump(jsondata, outfile)
