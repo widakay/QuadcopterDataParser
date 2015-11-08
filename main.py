@@ -15,7 +15,7 @@ import json
 from operator import itemgetter
 
 
-directory = "data/websitetesting/" + "park-good1" #+ str(int(time.time()))
+directory = "data/parkoct18/" + "park-try2" #+ str(int(time.time()))
 #directory = "data/" + "lowPressure" #+ str(int(time.time()))
 #directory = "data/oregon/" + "baseline"
 
@@ -35,7 +35,7 @@ port = serInput.findPort()
 
 dataFile = open(filename, "a")
 if port:
-	dataFile.write(serInput.readInput(port, deleteData=True))
+	dataFile.write(serInput.readInput(port, deleteData=False))
 else:
 	print "using cached data"
 dataFile.close()
@@ -106,7 +106,6 @@ dht.write("Time,temperature (C),humidity\n")
 combined = open(csvdir+"combined.csv", "w")
 combined.write("Time(ms),temperature,pressure,LP,LPState,PPM\n")
 
-jsondata = {"data" : []}
 
 
 posVec = [0,0,0]
@@ -190,25 +189,50 @@ def createKML(sensorID):
 		g = 255-color
 		b = 255
 		linestring.style.linestyle.color = "aa%02x%02x%02x" % (b,g,r)
-		#linestring.altitudemode = simplekml.AltitudeMode.absolute
-		linestring.altitudemode = simplekml.AltitudeMode.clamptoground
+		linestring.altitudemode = simplekml.AltitudeMode.absolute
+		#linestring.altitudemode = simplekml.AltitudeMode.clamptoground
 		linestring.style.linestyle.width = 10
 
 	kml.save(kmldir+sensorNames[sensorID]+".kml")
 
 
 
-#for i in range(2,6):
-#	createKML(i)
+for i in range(2,6):
+	createKML(i)
 
-if data:
-	for v in data:
-		jsondata["data"].append({
-			"pos":v[1],
-			"pressure":v[2]
-			})
+def createJSON():
+	if data:
+		maxmin = {}
+		for i in range(2,6):
+			minimum = min(data,key=lambda item:item[i])[i]
+			maximum = max(data,key=lambda item:item[i])[i]
+			maxmin[sensorNames[i]] = [minimum,maximum]
+			
 
-#print json.dumps(jsondata)
+		jsondata = {
+			"offset": [0-data[0][1][0], 0-data[0][1][1], 0-data[0][1][2]],
+			"rotation": [0,0,0],
+			"scale": 50000,
+			"maxmin": maxmin,
+			"data" : []
+		}
 
-with open(webdir+'data.json', 'w') as outfile:
-    json.dump(jsondata, outfile)
+		"""
+		var scale = data["scale"];      // 50000
+		var offset = data["offset"];    // [122.2787, 37.46244, 220]
+		var rotation = data["rotation"];
+		"""
+
+		for v in data:
+			#print v
+			datapoint = {"pos":v[1]}
+			for i in range(2,6):
+				datapoint[sensorNames[i]] = v[i]
+			jsondata["data"].append(datapoint)
+
+		#print json.dumps(jsondata)
+
+		with open(webdir+'data.json', 'w') as outfile:
+			json.dump(jsondata, outfile)
+
+createJSON()
