@@ -4,8 +4,6 @@ import time, serial, glob, sys, os
 
 
 def listSerialPorts():
-	
-
 	if sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
 		# this is to exclude your current terminal "/dev/tty"
 		ports = glob.glob('/dev/tty[A-Za-z]*')
@@ -46,7 +44,7 @@ def readInput(port, deleteData=True):
 	if not os.path.exists(port):
 		raise UnknownSerialPortException("Port " + port + " does not exist")
 	else:
-		# configure the serial connections (the parameters differs on the device you are connecting to)
+		# configure the serial connection
 		ser = serial.Serial(
 			port=port,
 			baudrate=115200,
@@ -55,23 +53,24 @@ def readInput(port, deleteData=True):
 			bytesize=serial.SEVENBITS
 		)
 
-
+		# double-check that the serial port can be connected to and buffers are empty
+		# by continuing when the port is already open, this fixes some bugs on Mac OS X, but may cause problems
+		# if another process has control the serial port
 		if ser.isOpen():
 			print "Port already open..."
 		else:
 			print "Openning port..."
 			ser.open()
-
-
 		ser.flush()
 
-
+		# Send read command
 		ser.write("r")
 
 		end = time.time() + 2
 		print "reading data...."
 		
 		data = ""
+		# Continuously read data until sensor has not replied for 2 seconds
 		while time.time() < end:
 			while ser.inWaiting():
 				addition = ser.read(ser.inWaiting())
